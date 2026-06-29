@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WeatherWatch</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Rajdhani:wght@600;700&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --bg:     #0b0d0f;
+    --border: #1e2226;
+    --text:   #e8eaed;
+    --muted:  #6b7280;
+    --accent: #3b82f6;
+  }
+
+  html, body {
+    width:100%; height:100%;
+    background:transparent;
+    overflow:hidden;
+    font-family:'Inter',sans-serif;
+  }
+
+  #root {
+    width:100%; height:100%;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ── Header ── */
+  #header {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:10px 18px 8px;
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+
+  #logo { display:flex; align-items:center; gap:8px; }
+
+  #logo svg { width:26px; height:26px; flex-shrink:0; }
+
+  #logo-text {
+    font-family:'Rajdhani',sans-serif;
+    font-size:22px; font-weight:700;
+    letter-spacing:0.04em;
+    color:var(--text); line-height:1;
+  }
+  #logo-text span { color:var(--accent); }
+
+  #divider { width:1px; height:20px; background:var(--border); }
+
+  #status-row { display:flex; align-items:center; gap:8px; margin-left:auto; }
+
+  #alert-count {
+    font-size:11px; font-weight:600;
+    color:var(--muted);
+    letter-spacing:0.06em; text-transform:uppercase;
+  }
+
+  #live-dot {
+    display:flex; align-items:center; gap:5px;
+    font-size:11px; font-weight:700;
+    color:#ef4444;
+    letter-spacing:0.08em; text-transform:uppercase;
+  }
+  #live-dot::before {
+    content:''; display:block;
+    width:7px; height:7px;
+    border-radius:50%;
+    background:#ef4444;
+    animation:pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100%{opacity:1;transform:scale(1);}
+    50%{opacity:0.4;transform:scale(0.8);}
+  }
+
+  /* ── List ── */
+  #alert-list {
+    flex:1; overflow:hidden;
+    padding:6px 0 4px;
+    display:flex; flex-direction:column;
+  }
+
+  .alert-row {
+    display:flex; align-items:flex-start;
+    gap:10px;
+    padding:6px 18px;
+    border-bottom:1px solid var(--border);
+    animation:slideIn .35s ease;
+    min-height:38px;
+  }
+  .alert-row:last-child { border-bottom:none; }
+
+  @keyframes slideIn {
+    from{opacity:0;transform:translateX(-6px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+
+  .bullet {
+    flex-shrink:0;
+    width:10px; height:10px;
+    border-radius:50%;
+    margin-top:4px;
+  }
+
+  .alert-body {
+    flex:1;
+    display:flex; flex-wrap:wrap;
+    align-items:baseline;
+    gap:0 8px;
+    line-height:1.35;
+  }
+
+  .alert-event {
+    font-size:13px; font-weight:700;
+    color:var(--text); letter-spacing:0.01em;
+  }
+
+  .alert-area { font-size:12px; color:var(--muted); }
+
+  .alert-meta {
+    margin-left:auto; flex-shrink:0;
+    display:flex; align-items:center; gap:6px;
+  }
+
+  .sev-tag {
+    font-size:10px; font-weight:700;
+    letter-spacing:0.08em; text-transform:uppercase;
+    padding:2px 6px; border-radius:3px;
+  }
+
+  .expires-label { font-size:10px; color:var(--muted); white-space:nowrap; }
+
+  /* ── State msg ── */
+  #state-msg {
+    display:none; flex:1;
+    flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:8px;
+    font-size:12px; color:var(--muted);
+    text-align:center; padding:12px;
+  }
+
+  /* ── Footer ── */
+  #footer {
+    padding:4px 18px 6px;
+    border-top:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+    flex-shrink:0;
+  }
+  #source  { font-size:10px; color:var(--muted); letter-spacing:0.04em; }
+  #last-updated { font-size:10px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="root">
+
+  <div id="header">
+    <div id="logo">
+      <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="13" cy="13" r="12" stroke="#3b82f6" stroke-width="1.5" opacity="0.3"/>
+        <circle cx="13" cy="13" r="8"  stroke="#3b82f6" stroke-width="1.5" opacity="0.5"/>
+        <circle cx="13" cy="13" r="4"  fill="#3b82f6" opacity="0.9"/>
+        <line x1="13" y1="13" x2="20" y2="5" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <div id="logo-text">Weather<span>Watch</span></div>
+    </div>
+    <div id="divider"></div>
+    <div id="status-row">
+      <div id="alert-count">— Active Alerts</div>
+      <div id="live-dot">Live</div>
+    </div>
+  </div>
+
+  <div id="alert-list"></div>
+  <div id="state-msg"></div>
+
+  <div id="footer">
+    <div id="source">Source: api.weather.gov · National Weather Service</div>
+    <div id="last-updated">Updated: —</div>
+  </div>
+
+</div>
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// WeatherWatch — OBS Browser Source overlay
+// Uses XMLHttpRequest (synchronous-compatible, works in OBS CEF from file://)
+// ─────────────────────────────────────────────────────────────────────────────
+
+var MAX_ALERTS = 20;
+var REFRESH_MS = 90000;
+
+var NWS_URL = 'https://api.weather.gov/alerts/active?status=actual&message_type=alert&limit=500';
+
+// Proxy URLs — each receives the encoded NWS_URL appended
+// We try them in order; first 200 with valid JSON wins.
+var PROXY_BUILDERS = [
+  function(u) { return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },
+  function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+  function(u) { return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); },
+  function(u) { return 'https://corsfix.com/' + u; },
+  function(u) { return 'https://thingproxy.freeboard.io/fetch/' + u; }
+];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function sevColor(severity) {
+  var s = (severity || '').toLowerCase();
+  if (s === 'extreme')  return { dot:'#dc2626', tag:'#7f1d1d', label:'EXTREME',  text:'#fca5a5' };
+  if (s === 'severe')   return { dot:'#ef4444', tag:'#991b1b', label:'SEVERE',   text:'#fca5a5' };
+  if (s === 'moderate') return { dot:'#f97316', tag:'#7c2d12', label:'MODERATE', text:'#fdba74' };
+  return                       { dot:'#facc15', tag:'#713f12', label:'MINOR',    text:'#fde68a' };
+}
+
+function fmtTime(iso) {
+  if (!iso) return '';
+  try {
+    var d = new Date(iso);
+    return d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZoneName:'short' });
+  } catch(e) { return ''; }
+}
+
+function shortArea(areaDesc) {
+  if (!areaDesc) return '';
+  var parts = areaDesc.split(';');
+  var clean = [];
+  for (var i = 0; i < parts.length; i++) {
+    var t = parts[i].replace(/^\s+|\s+$/g, '');
+    if (t) clean.push(t);
+  }
+  var out = clean.slice(0, 2).join('; ');
+  if (clean.length > 2) out += ' +' + (clean.length - 2) + ' more';
+  return out;
+}
+
+function setStatus(msg) {
+  var el = document.getElementById('state-msg');
+  el.style.display = 'flex';
+  el.innerHTML = msg;
+}
+
+function clearStatus() {
+  var el = document.getElementById('state-msg');
+  el.style.display = 'none';
+  el.innerHTML = '';
+}
+
+// ── XHR fetch — works in OBS CEF where fetch() from file:// is blocked ───────
+// Returns parsed JSON object or throws.
+function xhrGet(url) {
+  return new Promise(function(resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 12000;
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          var data = JSON.parse(xhr.responseText);
+          resolve(data);
+        } catch(e) {
+          reject(new Error('JSON parse error'));
+        }
+      } else {
+        reject(new Error('HTTP ' + xhr.status));
+      }
+    };
+    xhr.ontimeout = function() { reject(new Error('Timeout')); };
+    xhr.onerror  = function() { reject(new Error('Network error')); };
+    xhr.send();
+  });
+}
+
+// allorigins /get wraps in { contents: "..." } — unwrap it
+function xhrGetAllOriginsWrapped(url) {
+  var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+  return new Promise(function(resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', proxyUrl, true);
+    xhr.timeout = 12000;
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          var wrapper = JSON.parse(xhr.responseText);
+          var data = JSON.parse(wrapper.contents);
+          resolve(data);
+        } catch(e) {
+          reject(new Error('JSON unwrap error'));
+        }
+      } else {
+        reject(new Error('HTTP ' + xhr.status));
+      }
+    };
+    xhr.ontimeout = function() { reject(new Error('Timeout')); };
+    xhr.onerror  = function() { reject(new Error('Network error')); };
+    xhr.send();
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+function renderAlerts(features) {
+  var list  = document.getElementById('alert-list');
+  var count = document.getElementById('alert-count');
+  var ts    = document.getElementById('last-updated');
+
+  list.innerHTML = '';
+  clearStatus();
+
+  ts.textContent = 'Updated: ' + new Date().toLocaleTimeString();
+
+  if (!features || features.length === 0) {
+    count.textContent = '0 Active Alerts';
+    setStatus('No active alerts at this time.');
+    return;
+  }
+
+  // Sort by severity
+  var order = { extreme:0, severe:1, moderate:2, minor:3 };
+  features = features.slice().sort(function(a, b) {
+    var sa = order[((a.properties || {}).severity || '').toLowerCase()];
+    var sb = order[((b.properties || {}).severity || '').toLowerCase()];
+    if (sa === undefined) sa = 4;
+    if (sb === undefined) sb = 4;
+    return sa - sb;
+  });
+
+  var slice = features.slice(0, MAX_ALERTS);
+  count.textContent = slice.length + ' Active Alert' + (slice.length !== 1 ? 's' : '');
+
+  list.style.display = 'flex';
+
+  for (var i = 0; i < slice.length; i++) {
+    var p   = slice[i].properties || {};
+    var col = sevColor(p.severity);
+    var area = shortArea(p.areaDesc);
+
+    var row = document.createElement('div');
+    row.className = 'alert-row';
+
+    var expires = p.expires ? '<span class="expires-label">Until ' + fmtTime(p.expires) + '</span>' : '';
+
+    row.innerHTML =
+      '<div class="bullet" style="background:' + col.dot + ';box-shadow:0 0 6px ' + col.dot + '99"></div>' +
+      '<div class="alert-body">' +
+        '<span class="alert-event">' + (p.event || 'Alert') + '</span>' +
+        '<span class="alert-area">' + area + '</span>' +
+      '</div>' +
+      '<div class="alert-meta">' +
+        '<span class="sev-tag" style="background:' + col.tag + ';color:' + col.text + '">' + col.label + '</span>' +
+        expires +
+      '</div>';
+
+    list.appendChild(row);
+  }
+}
+
+// ── Main fetch logic ─────────────────────────────────────────────────────────
+// Tries: direct → each proxy → allorigins wrapped
+
+function fetchAlerts() {
+  var errors = [];
+
+  function tryNext(index) {
+    if (index >= PROXY_BUILDERS.length) {
+      // Last resort: allorigins wrapped JSON
+      xhrGetAllOriginsWrapped(NWS_URL).then(function(data) {
+        if (data && data.features) {
+          renderAlerts(data.features);
+        } else {
+          throw new Error('No features');
+        }
+      }).catch(function(e) {
+        errors.push('allorigins-wrapped: ' + e.message);
+        showFailed(errors);
+      });
+      return;
+    }
+
+    var url = PROXY_BUILDERS[index](NWS_URL);
+    xhrGet(url).then(function(data) {
+      if (data && data.features) {
+        renderAlerts(data.features);
+      } else {
+        throw new Error('No features in response');
+      }
+    }).catch(function(e) {
+      errors.push('proxy' + index + ': ' + e.message);
+      tryNext(index + 1);
+    });
+  }
+
+  // Try direct first (works if OBS launched with --disable-web-security)
+  xhrGet(NWS_URL).then(function(data) {
+    if (data && data.features) {
+      renderAlerts(data.features);
+    } else {
+      throw new Error('No features');
+    }
+  }).catch(function(e) {
+    errors.push('direct: ' + e.message);
+    tryNext(0);
+  });
+}
+
+function showFailed(errors) {
+  document.getElementById('last-updated').textContent = 'Failed — retrying in 90s';
+  document.getElementById('alert-count').textContent = '— Active Alerts';
+  setStatus(
+    '<div style="font-weight:700;color:#ef4444;margin-bottom:4px;">Unable to reach weather data</div>' +
+    '<div style="font-size:10px;color:#6b7280;max-width:500px;">' +
+      'To fix: right-click your OBS shortcut &rarr; Properties &rarr; add ' +
+      '<span style="color:#facc15;font-family:monospace">--disable-web-security</span> ' +
+      'to the Target field after the closing quote.' +
+    '</div>'
+  );
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+fetchAlerts();
+setInterval(fetchAlerts, REFRESH_MS);
+</script>
+</body>
+</html>
